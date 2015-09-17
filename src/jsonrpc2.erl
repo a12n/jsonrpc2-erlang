@@ -240,8 +240,7 @@ merge_responses(Responses) when is_list(Responses) ->
 
 test_handler(<<"subtract">>, [42,23]) -> 19;
 test_handler(<<"subtract">>, [23,42]) -> -19;
-test_handler(<<"subtract">>, {[{<<"subtrahend">>,23},{<<"minuend">>,42}]}) -> 19;
-test_handler(<<"subtract">>, {[{<<"minuend">>,42},{<<"subtrahend">>,23}]}) -> 19;
+test_handler(<<"subtract">>, #{<<"subtrahend">> := 23,<<"minuend">> := 42}) -> 19;
 test_handler(<<"update">>, [1,2,3,4,5]) -> ok;
 test_handler(<<"sum">>, [1,2,4]) -> 7;
 test_handler(<<"get_data">>, []) -> [<<"hello">>,5];
@@ -249,77 +248,78 @@ test_handler(_, _) -> throw(method_not_found).
 
 %% rpc call with positional parameters
   call_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},
-            {<<"method">>,<<"subtract">>},
-            {<<"params">>,[42,23]},
-            {<<"id">>,1}]},
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},{<<"result">>,19},{<<"id">>,1}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,
+            <<"method">> => <<"subtract">>,
+            <<"params">> => [42,23],
+            <<"id">> => 1},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,<<"result">> => 19,<<"id">> => 1},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call with positional parameters, reverse order
 call2_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},
-            {<<"method">>,<<"subtract">>},
-            {<<"params">>,[23,42]},
-            {<<"id">>,2}]},
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},{<<"result">>,-19},{<<"id">>,2}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,
+            <<"method">> => <<"subtract">>,
+            <<"params">> => [23,42],
+            <<"id">> => 2},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,<<"result">> => -19,<<"id">> => 2},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call with named parameters
 named_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},
-            {<<"method">>,<<"subtract">>},
-            {<<"params">>,{[{<<"subtrahend">>,23},{<<"minuend">>,42}]}},
-            {<<"id">>,3}]},
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},{<<"result">>,19},{<<"id">>,3}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,
+            <<"method">> => <<"subtract">>,
+            <<"params">> => #{<<"subtrahend">> => 23,<<"minuend">> => 42},
+            <<"id">> => 3},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,<<"result">> => 19,<<"id">> => 3},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call with named parameters, reverse order
 named2_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},
-            {<<"method">>,<<"subtract">>},
-            {<<"params">>,{[{<<"minuend">>,42},{<<"subtrahend">>,23}]}},
-            {<<"id">>,4}]},
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},{<<"result">>,19},{<<"id">>,4}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,
+            <<"method">> => <<"subtract">>,
+            <<"params">> => #{<<"minuend">> => 42,<<"subtrahend">> => 23},
+            <<"id">> => 4},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,<<"result">> => 19,<<"id">> => 4},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% a Notification
 notif_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},
-            {<<"method">>,<<"update">>},
-            {<<"params">>,[1,2,3,4,5]}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,
+            <<"method">> => <<"update">>,
+            <<"params">> => [1,2,3,4,5]},
     noreply = handle(Req, fun test_handler/2).
 
 %% a Notification + non-existent method
 notif2_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},{<<"method">>,<<"foobar">>}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,<<"method">> => <<"foobar">>},
     noreply = handle(Req, fun test_handler/2).
 
 %% rpc call of non-existent method
 bad_method_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},{<<"method">>,<<"foobar">>},{<<"id">>,<<"1">>}]},
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},
-              {<<"error">>,
-               {[{<<"code">>,-32601},{<<"message">>,<<"Method not found.">>}]}},
-              {<<"id">>,<<"1">>}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,<<"method">> => <<"foobar">>,<<"id">> => <<"1">>},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,
+              <<"error">> => #{<<"code">> => -32601,
+                               <<"message">> => <<"Method not found.">>},
+              <<"id">> => <<"1">>},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call with invalid JSON
 %% Not applicable, since JSON parsing is not done in this module. We test the error
 %% response though.
 bad_json_test() ->
-    Expected = {[{<<"jsonrpc">>,<<"2.0">>},
-                 {<<"error">>,{[{<<"code">>,-32700},{<<"message">>,<<"Parse error.">>}]}},
-                 {<<"id">>,null}]},
+    Expected = #{<<"jsonrpc">> => <<"2.0">>,
+                 <<"error">> => #{<<"code">> => -32700,<<"message">> => <<"Parse error.">>},
+                 <<"id">> => null},
     Reply = parseerror(),
     Reply = Expected.
 
 %% rpc call with invalid Request object
 bad_rpc_test() ->
-    Req = {[{<<"jsonrpc">>,<<"2.0">>},{<<"method">>,1},{<<"params">>,<<"bar">>}]},
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},
-              {<<"error">>,{[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-              {<<"id">>,null}]},
+    Req = #{<<"jsonrpc">> => <<"2.0">>,<<"method">> => 1,<<"params">> => <<"bar">>},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,
+              <<"error">> => #{<<"code">> => -32600,
+                               <<"message">> => <<"Invalid Request.">>},
+              <<"id">> => null},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call Batch, invalid JSON:
@@ -330,106 +330,111 @@ bad_json_batch_test() ->
 %% rpc call with an empty Array
 empty_batch_test() ->
     Req = [],
-    Reply = {[{<<"jsonrpc">>,<<"2.0">>},
-              {<<"error">>,{[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-              {<<"id">>,null}]},
+    Reply = #{<<"jsonrpc">> => <<"2.0">>,
+              <<"error">> => #{<<"code">> => -32600,
+                               <<"message">> => <<"Invalid Request.">>},
+              <<"id">> => null},
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call with an invalid Batch (but not empty)
 invalid_batch_test() ->
     Req = [1],
-    Reply = [{[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"error">>,
-              {[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-             {<<"id">>,null}]}],
+    Reply = [#{<<"jsonrpc">> => <<"2.0">>,
+               <<"error">> =>
+                   #{<<"code">> => -32600,
+                     <<"message">> => <<"Invalid Request.">>},
+               <<"id">> => null}],
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call with invalid Batch
 invalid_batch2_test() ->
     Req = [1,2,3],
-    Reply = [{[{<<"jsonrpc">>,<<"2.0">>},
-               {<<"error">>,
-                {[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-               {<<"id">>,null}]},
-             {[{<<"jsonrpc">>,<<"2.0">>},
-               {<<"error">>,
-                {[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-               {<<"id">>,null}]},
-             {[{<<"jsonrpc">>,<<"2.0">>},
-               {<<"error">>,
-                {[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-               {<<"id">>,null}]}],
+    Reply = [#{<<"jsonrpc">> => <<"2.0">>,
+               <<"error">> =>
+                   #{<<"code">> => -32600,
+                     <<"message">> => <<"Invalid Request.">>},
+               <<"id">> => null},
+             #{<<"jsonrpc">> => <<"2.0">>,
+               <<"error">> =>
+                   #{<<"code">> => -32600,
+                     <<"message">> => <<"Invalid Request.">>},
+               <<"id">> => null},
+             #{<<"jsonrpc">> => <<"2.0">>,
+               <<"error">> =>
+                   #{<<"code">> => -32600,
+                     <<"message">> => <<"Invalid Request.">>},
+               <<"id">> => null}],
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call Batch
 batch_test() ->
-    Req = [{[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"sum">>},
-             {<<"params">>,[1,2,4]},
-             {<<"id">>,<<"1">>}]},
-           {[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"notify_hello">>},
-             {<<"params">>,[7]}]},
-           {[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"subtract">>},
-             {<<"params">>,[42,23]},
-             {<<"id">>,<<"2">>}]},
-           {[{<<"foo">>,<<"boo">>}]},
-           {[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"foo.get">>},
-             {<<"params">>,{[{<<"name">>,<<"myself">>}]}},
-             {<<"id">>,<<"5">>}]},
-           {[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"get_data">>},
-             {<<"id">>,<<"9">>}]}],
-    Reply = [{[{<<"jsonrpc">>,<<"2.0">>},{<<"result">>,7},{<<"id">>,<<"1">>}]},
-             {[{<<"jsonrpc">>,<<"2.0">>},{<<"result">>,19},{<<"id">>,<<"2">>}]},
-             {[{<<"jsonrpc">>,<<"2.0">>},
-               {<<"error">>,
-                {[{<<"code">>,-32600},{<<"message">>,<<"Invalid Request.">>}]}},
-               {<<"id">>,null}]},
-             {[{<<"jsonrpc">>,<<"2.0">>},
-               {<<"error">>,
-                {[{<<"code">>,-32601},{<<"message">>,<<"Method not found.">>}]}},
-               {<<"id">>,<<"5">>}]},
-             {[{<<"jsonrpc">>,<<"2.0">>},
-               {<<"result">>,[<<"hello">>,5]},
-               {<<"id">>,<<"9">>}]}],
+    Req = [#{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"sum">>,
+             <<"params">> => [1,2,4],
+             <<"id">> => <<"1">>},
+           #{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"notify_hello">>,
+             <<"params">> => [7]},
+           #{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"subtract">>,
+             <<"params">> => [42,23],
+             <<"id">> => <<"2">>},
+           #{<<"foo">> => <<"boo">>},
+           #{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"foo.get">>,
+             <<"params">> => #{<<"name">> => <<"myself">>},
+             <<"id">> => <<"5">>},
+           #{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"get_data">>,
+             <<"id">> => <<"9">>}],
+    Reply = [#{<<"jsonrpc">> => <<"2.0">>,<<"result">> => 7,<<"id">> => <<"1">>},
+             #{<<"jsonrpc">> => <<"2.0">>,<<"result">> => 19,<<"id">> => <<"2">>},
+             #{<<"jsonrpc">> => <<"2.0">>,
+               <<"error">> =>
+                   #{<<"code">> => -32600,<<"message">> => <<"Invalid Request.">>},
+               <<"id">> => null},
+             #{<<"jsonrpc">> => <<"2.0">>,
+               <<"error">> =>
+                   #{<<"code">> => -32601,<<"message">> => <<"Method not found.">>},
+               <<"id">> => <<"5">>},
+             #{<<"jsonrpc">> => <<"2.0">>,
+               <<"result">> => [<<"hello">>,5],
+               <<"id">> => <<"9">>}],
     {reply, Reply} = handle(Req, fun test_handler/2).
 
 %% rpc call Batch (all notifications)
 batch_notif_test() ->
-    Req = [{[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"notify_sum">>},
-             {<<"params">>,[1,2,4]}]},
-           {[{<<"jsonrpc">>,<<"2.0">>},
-             {<<"method">>,<<"notify_hello">>},
-             {<<"params">>,[7]}]}],
+    Req = [#{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"notify_sum">>,
+             <<"params">> => [1,2,4]},
+           #{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"notify_hello">>,
+             <<"params">> => [7]}],
     noreply = handle(Req, fun test_handler/2).
 
 -define(ENCODED_REQUEST, <<"{\"jsonrpc\":\"2.0\","
                            "\"method\":\"subtract\","
                            "\"params\":[42,23],"
                            "\"id\":1}">>).
--define(DECODED_REQUEST, {[{<<"jsonrpc">>,<<"2.0">>},
-                           {<<"method">>,<<"subtract">>},
-                           {<<"params">>,[42,23]},
-                           {<<"id">>,1}]}).
+-define(DECODED_REQUEST, #{<<"jsonrpc">> => <<"2.0">>,
+                           <<"method">> => <<"subtract">>,
+                           <<"params">> => [42,23],
+                           <<"id">> => 1}).
 -define(ENCODED_RESPONSE, <<"{\"jsonrpc\":\"2.0\","
                             "\"result\":19,"
                             "\"id\":1}">>).
--define(DECODED_RESPONSE, {[{<<"jsonrpc">>,<<"2.0">>},
-                            {<<"result">>,19},
-                            {<<"id">>,1}]}).
+-define(DECODED_RESPONSE, #{<<"jsonrpc">> := <<"2.0">>,
+                            <<"result">> := 19,
+                            <<"id">> := 1}).
 -define(ENCODED_PARSE_ERROR, <<"{\"jsonrpc\":\"2.0\","
                                "\"error\":{\"code\":-32700,"
                                "\"message\":\"Parse error.\"},"
                                "\"id\":null}">>).
--define(DECODED_PARSE_ERROR, {[{<<"jsonrpc">>,<<"2.0">>},
-                               {<<"error">>,
-                                {[{<<"code">>,-32700},
-                                  {<<"message">>,<<"Parse error.">>}]}},
-                               {<<"id">>,null}]}).
+-define(DECODED_PARSE_ERROR, #{<<"jsonrpc">> := <<"2.0">>,
+                               <<"error">> :=
+                                   #{<<"code">> := -32700,
+                                     <<"message">> := <<"Parse error.">>},
+                               <<"id">> := null}).
 
 %% define json encode and decode only for the cases we need in the tests
 json_decode(?ENCODED_REQUEST)     -> ?DECODED_REQUEST.
