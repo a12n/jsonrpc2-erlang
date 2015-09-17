@@ -25,9 +25,9 @@
 
 -export([handle/2, handle/3, handle/4, handle/5, parseerror/0]).
 
--type json() :: true | false | null | binary() | [json()] | {[{binary(), json()}]}.
+-type json() :: true | false | null | binary() | [json()] | map().
 -type method() :: binary().
--type params() :: [json()] | {[{binary(), json()}]}.
+-type params() :: [json()] | map().
 -type id() :: number() | null.
 -type errortype() :: parse_error | method_not_found | invalid_params |
                      internal_error | server_error.
@@ -117,9 +117,9 @@ parseerror() ->
 make_result_response(_Result, undefined) ->
     noreply;
 make_result_response(Result, Id) ->
-    {reply, {[{<<"jsonrpc">>, <<"2.0">>},
-              {<<"result">>, Result},
-              {<<"id">>, Id}]}}.
+    {reply, #{<<"jsonrpc">> => <<"2.0">>,
+              <<"result">> => Result,
+              <<"id">> => Id}}.
 
 -spec make_standard_error_response(errortype(), id() | undefined) -> response().
 make_standard_error_response(ErrorType, Id) ->
@@ -148,19 +148,19 @@ make_error_response(Code, Message, Id) ->
 %% @doc Make json-rpc error response, with data
 -spec make_error(integer(), binary(), json(), id()) -> json().
 make_error(Code, Msg, Data, Id) ->
-    {[{<<"jsonrpc">>, <<"2.0">>},
-      {<<"error">>, {[{<<"code">>, Code},
-                      {<<"message">>, Msg},
-                      {<<"data">>, Data}]}},
-      {<<"id">>, Id}]}.
+    #{<<"jsonrpc">> => <<"2.0">>,
+      <<"error">> => #{<<"code">> => Code,
+                       <<"message">> => Msg,
+                       <<"data">> => Data},
+      <<"id">> => Id}.
 
 %% @doc Make json-rpc error response, without data
 -spec make_error(integer(), binary(), id()) -> json().
 make_error(Code, Msg, Id) ->
-    {[{<<"jsonrpc">>, <<"2.0">>},
-      {<<"error">>, {[{<<"code">>, Code},
-                      {<<"message">>, Msg}]}},
-      {<<"id">>, Id}]}.
+    #{<<"jsonrpc">> => <<"2.0">>,
+      <<"error">> => #{<<"code">> => Code,
+                       <<"message">> => Msg},
+      <<"id">> => Id}.
 
 %% @doc Parses the RPC part of an already JSON decoded request. Returns a tuple
 %% {Method, Params, Id} for a single request, 'invalid_request' for an invalid
@@ -169,14 +169,14 @@ make_error(Code, Msg, Id) ->
 -spec parse(json()) -> request() | [request()].
 parse(Reqs) when is_list(Reqs) ->
     [parse(Req) || Req <- Reqs];
-parse({Req}) ->
-    Version = proplists:get_value(<<"jsonrpc">>, Req),
-    Method  = proplists:get_value(<<"method">>,  Req),
-    Params  = proplists:get_value(<<"params">>,  Req, []),
-    Id      = proplists:get_value(<<"id">>,      Req, undefined),
+parse(Req) when is_map(Req) ->
+    Version = maps:get(<<"jsonrpc">>, Req, undefined),
+    Method  = maps:get(<<"method">>,  Req, undefined),
+    Params  = maps:get(<<"params">>,  Req, []),
+    Id      = maps:get(<<"id">>,      Req, undefined),
     case Version =:= <<"2.0">>
            andalso is_binary(Method)
-           andalso (is_list(Params) orelse is_tuple(Params))
+           andalso (is_list(Params) orelse is_map(Params))
            andalso (Id =:= undefined orelse Id =:= null
                                      orelse is_binary(Id)
                                      orelse is_number(Id)) of
