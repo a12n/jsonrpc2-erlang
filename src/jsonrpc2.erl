@@ -34,10 +34,12 @@
 -type error() :: errortype() | {errortype(), json()} | {jsonrpc2, integer(), binary()} |
                  {jsonrpc2, integer(), binary(), json()}.
 -type request() :: {method(), params(), id() | undefined} | invalid_request.
--type response() :: {reply, json()} | noreply.
+-type response() :: {reply, json(), term()} | {noreply, term()}.
 
--type handlerfun() :: fun((method(), params()) -> json()).
--type mapfun() :: fun((fun((A) -> B), [A]) -> [B]). % should be the same as lists:map/2
+-type handlerfun() :: fun((method(), params(), term()) -> {json(), term()}).
+
+%% should be the same as lists:mapfoldl/2
+-type mapfun() :: fun((fun((A, AccIn) -> {B, AccOut}), Acc0, [A]) -> {[B], Acc1}).
 
 -export_type([json/0, method/0, params/0, id/0, handlerfun/0, mapfun/0,
               response/0, errortype/0, error/0]).
